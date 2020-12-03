@@ -1776,7 +1776,7 @@ namespace Obfuscar
                     int err = StrongNameErrorInfo();
                     Exception e = System.Runtime.InteropServices.Marshal.GetExceptionForHR(err);
 
-                    throw new Exception("Unable to sign assembly using key from key container '" + keyname + "'. StrongName API error: '" + e.Message + "'");
+                    throw new Exception("Unable to sign assembly using key from key container '" + keyname + "'.\nStrongName API error: '" + e.Message + "'.\nMaybe you need to install .NET Framework 3.5, which this depends on for some reason?");
                 }
             }
         }
