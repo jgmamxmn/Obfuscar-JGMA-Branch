@@ -1766,11 +1766,18 @@ namespace Obfuscar
                 [System.Runtime.InteropServices.Out] out uint pcbSignatureBlob
             );
 
+            [System.Runtime.InteropServices.DllImport("mscoree.dll")]
+            public extern static int StrongNameErrorInfo();
             public static void SignAssemblyFromKeyContainer(string assemblyname, string keyname)
             {
                 uint dummy;
                 if (!StrongNameSignatureGeneration(assemblyname, keyname, null, 0, IntPtr.Zero, out dummy))
-                    throw new Exception("Unable to sign assembly using key from key container - " + keyname);
+                {
+                    int err = StrongNameErrorInfo();
+                    Exception e = System.Runtime.InteropServices.Marshal.GetExceptionForHR(err);
+
+                    throw new Exception("Unable to sign assembly using key from key container '" + keyname + "'. StrongName API error: '" + e.Message + "'");
+                }
             }
         }
     }
