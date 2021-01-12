@@ -52,6 +52,8 @@ namespace Obfuscar
             Console.WriteLine("- FIXED HideStrings. Previously, a global HideStrings=false setting didn't seem\n  to be honored.");
             Console.WriteLine("- ADDED alternative alphabet. Specify a global option of CustomAlphabetFile\n  with a value specifying a path to a text file. Characters from that text\n  file will form the basis for class/method/property names (instead of the\n  Latin alphabet or, if enabled, the Korean alphabet).");
             Console.WriteLine("- ADDED alternative KeyContainer mode - if the value of the KeyContainer\n  setting starts with the prefix reg:, then the rest of the value should be a\n  registry key path whose value specifies the key name. The point of this\n  is to all a standardized config file usable across different machines (where\n  the key names won't necessarily be the same).");
+            Console.WriteLine(("- ADDED MappingFormat as an ALTERNATIVE to XmlMapping. MappingFormat\n  will override XmlMapping. valid values are 'default' (follow XmlMapping),\n  'text' (conventional text file), 'xml' (same as XmlMapping=true), or\n  'tsv' or 'json' which lay out the values in a parseable (tab-separated or\n  as a JSON array, respectively) format incl. hex values for non-ANSI chars."));
+
         }
 
         [SuppressMessage("StyleCop.CSharp.SpacingRules", "SA1027:TabsMustNotBeUsed", Justification =

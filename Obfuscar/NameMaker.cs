@@ -32,7 +32,7 @@ namespace Obfuscar
 {
     static class NameMaker
     {
-        static string uniqueChars;
+        static string uniqueChars1;
         static int numUniqueChars;
         const string defaultChars = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz";
 
@@ -93,44 +93,44 @@ namespace Obfuscar
 
         public static bool UseUnicodeChars
         {
-            get { return uniqueChars == unicodeChars; }
+            get { return uniqueChars1 == unicodeChars; }
             set
             {
                 if (value)
-                    uniqueChars = unicodeChars;
+                    uniqueChars1 = unicodeChars;
                 else
-                    uniqueChars = defaultChars;
+                    uniqueChars1 = defaultChars;
 
-                numUniqueChars = uniqueChars.Length;
+                numUniqueChars = uniqueChars1.Length;
             }
         }
 
         public static bool UseKoreanChars
         {
-            get { return unicodeChars == koreanChars; }
+            get { return uniqueChars1 == koreanChars; }
             set
             {
                 if (value)
-                    uniqueChars = koreanChars;
+                    uniqueChars1 = koreanChars;
                 else
-                    uniqueChars = defaultChars;
+                    uniqueChars1 = defaultChars;
 
-                numUniqueChars = uniqueChars.Length;
+                numUniqueChars = uniqueChars1.Length;
             }
         }
 
         // JGMA added this
         public static bool UseCustomChars
         {
-            get { return unicodeChars == customChars; }
+            get { return uniqueChars1 == customChars; }
             set
             {
                 if (value)
-                    uniqueChars = customChars;
+                    uniqueChars1 = customChars;
                 else
-                    uniqueChars = defaultChars;
+                    uniqueChars1 = defaultChars;
 
-                numUniqueChars = uniqueChars.Length;
+                numUniqueChars = uniqueChars1.Length;
             }
         }
 
@@ -145,7 +145,7 @@ namespace Obfuscar
                 return;
             }
 
-            string allCustom = System.IO.File.ReadAllText(AlphabetFile); // May need to customize encoding??
+            string allCustom = System.IO.File.ReadAllText(AlphabetFile, Encoding.UTF8); // May need to customize encoding??
             int Max = allCustom.Length;
             if (Max < 128)
             {
@@ -162,13 +162,14 @@ namespace Obfuscar
                 if((startPoint + i) >= Max)
                     startPoint = -i;
 
-                chars.Add((char)(i+startPoint));
+                chars.Add((char)allCustom[i+startPoint]);
             }
 
             ShuffleArray(chars, rnd);
             customChars = new string(chars.ToArray());
 
             Console.WriteLine("loaded!");
+            //Console.WriteLine("Alphabet: " + customChars);
 
             UseCustomChars = true;
         }
@@ -182,13 +183,13 @@ namespace Obfuscar
         {
             // optimization for simple case
             if (index < numUniqueChars)
-                return uniqueChars[index].ToString();
+                return uniqueChars1[index].ToString();
 
             Stack<char> stack = new Stack<char>();
 
             do
             {
-                stack.Push(uniqueChars[index % numUniqueChars]);
+                stack.Push(uniqueChars1[index % numUniqueChars]);
                 if (index < numUniqueChars)
                     break;
                 index /= numUniqueChars;
@@ -202,6 +203,8 @@ namespace Obfuscar
                     builder.Append(sep);
                 builder.Append(stack.Pop());
             }
+
+            //Console.WriteLine("Unique name: '" + builder.ToString() + "'");
 
             return builder.ToString();
         }

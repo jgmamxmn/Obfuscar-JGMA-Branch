@@ -330,10 +330,37 @@ namespace Obfuscar
 
         /// <summary>
         /// Saves the name mapping to the output path.
+        /// JGMA 2021-01-12 added TSV & JSON support, and refactored
         /// </summary>
         private void SaveMapping()
         {
-            string filename = Project.Settings.XmlMapping ? "Mapping.xml" : "Mapping.txt";
+            string mappingFormat = Project.Settings.MappingFormat;
+            if (mappingFormat == "default")
+                mappingFormat = (Project.Settings.XmlMapping_deprecated ? "xml" : "text");
+
+            string filename;
+            Func<TextWriter, IMapWriter> MapWriterFactory;
+            switch (mappingFormat)
+            {
+                case "text":    
+                    filename = "Mapping.txt";
+                    MapWriterFactory = (TW) => new TextMapWriter(TW);
+                    break;
+                case "xml":     
+                    filename = "Mapping.xml";
+                    MapWriterFactory = (TW) => new XmlMapWriter(TW);
+                    break;
+                case "tsv":     
+                    filename = "Mapping.tsv";
+                    MapWriterFactory = (TW) => new TsvMapWriter(TW);
+                    break;
+                case "json":
+                    filename = "Mapping.json";
+                    MapWriterFactory = (TW) => new JsonMapWriter(TW);
+                    break;
+                default:
+                    goto case "text";
+            }
 
             string logPath = Path.Combine(Project.Settings.OutPath, filename);
             if (!string.IsNullOrEmpty(Project.Settings.LogFilePath))
@@ -344,19 +371,10 @@ namespace Obfuscar
                 Directory.CreateDirectory(lPath);
 
             using (TextWriter file = File.CreateText(logPath))
-                SaveMapping(file);
-        }
-
-        /// <summary>
-        /// Saves the name mapping to a text writer.
-        /// </summary>
-        private void SaveMapping(TextWriter writer)
-        {
-            IMapWriter mapWriter = Project.Settings.XmlMapping
-                ? new XmlMapWriter(writer)
-                : (IMapWriter) new TextMapWriter(writer);
-
-            mapWriter.WriteMap(Mapping);
+            {
+                IMapWriter mapWriter = MapWriterFactory(file);
+                mapWriter.WriteMap(Mapping);
+            }
         }
 
         /// <summary>

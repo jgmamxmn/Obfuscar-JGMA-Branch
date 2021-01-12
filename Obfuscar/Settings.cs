@@ -51,7 +51,9 @@ namespace Obfuscar
             Optimize = XmlConvert.ToBoolean(vars.GetValue("OptimizeMethods", "true"));
             SuppressIldasm = XmlConvert.ToBoolean(vars.GetValue("SuppressIldasm", "true"));
 
-            XmlMapping = XmlConvert.ToBoolean(vars.GetValue("XmlMapping", "false"));
+            XmlMapping_deprecated = XmlConvert.ToBoolean(vars.GetValue("XmlMapping", "false")); // JGMA renamed this 2021-01-12
+            MappingFormat = vars.GetValue("MappingFormat", "default"); // JGMA added this 2021-01-12
+
             RegenerateDebugInfo = XmlConvert.ToBoolean(vars.GetValue("RegenerateDebugInfo", "false"));
         }
 
@@ -83,11 +85,20 @@ namespace Obfuscar
 
         public bool SuppressIldasm { get; }
 
-        public bool XmlMapping { get; }
+        /// <summary>
+        /// JGMA 2021-01-12: Prefer MappingFormat. XmlMapping only relevant if MappingFormat undefined.
+        /// </summary>
+        public bool XmlMapping_deprecated { get; } // JGMA renamed this
+        /// <summary>
+        /// JGMA 2021-01-12: Valid values: 'default', 'text', 'xml', 'tsv', 'json'. TSV and JSON are the sexy new thang.
+        /// </summary>
+        public string MappingFormat { get; } // JGMA added this
 
         public bool UseUnicodeNames { get; }
 
-        // JGMA: If set to a file on disk, 128 random chars will be chosen from the specified alphabet file.
+        /// <summary>
+        /// JGMA: If set to a file on disk, 128 random chars will be chosen from the specified alphabet file.
+        /// </summary>
         public string CustomAlphabetFile { get; } // JGMA added this
 
         public bool UseKoreanNames { get; }

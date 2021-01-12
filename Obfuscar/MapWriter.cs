@@ -38,6 +38,363 @@ namespace Obfuscar
         void WriteMap(ObfuscationMap map);
     }
 
+    // JGMA added this 2021-01-12
+    class JsonMapWriter : TsvMapWriter
+    {
+        public JsonMapWriter(TextWriter writer) : base(writer) { }
+        protected override void DoWrite(List<Entry> MyEntries, TextWriter MyWriter)
+        {
+            MyWriter.Write(Newtonsoft.Json.JsonConvert.SerializeObject(MyEntries));
+        }
+    }
+
+    class TsvMapWriter : IMapWriter, IDisposable
+    {
+        private readonly TextWriter writer1;
+
+        public TsvMapWriter(TextWriter writer)
+        {
+            this.writer1 = writer;
+        }
+
+        public class Entry
+        {
+            /// <summary>
+            /// Original name of the entry
+            /// </summary>
+            public string CleartextName;
+            /// <summary>
+            /// Obfuscated name, with non-ANSI characters translated to hex in format [0x0]
+            /// </summary>
+            public string ObfuscatedName;
+            /// <summary>
+            /// For local-scope variables, this sets out the method in which they reside
+            /// </summary>
+            public string CleartextContext;
+            /// <summary>
+            /// For local-scope variables, this sets out the method in which they reside
+            /// </summary>
+            public string ObfuscatedContext;
+            /// <summary>
+            /// e.g. 'method', 'class', 'resource', 'property', 'field'
+            /// </summary>
+            public string EntryType;
+            /// <summary>
+            /// e.g. 'renamed', 'skipped'
+            /// </summary>
+            public string Status;
+
+            /// <summary>
+            /// We don't use this (yet)
+            /// </summary>
+            public string Method_Params;
+            /// <summary>
+            /// We don't use this (yet)
+            /// </summary>
+            public string Field_Type;
+
+            public Entry(string cleartextName, string obfuscatedName_IncludingUnicode, string cleartextContext, string obfuscatedContext_IncludingUnicode, string entryType, string status)
+            {
+                CleartextName = cleartextName;
+                ObfuscatedName = TsvMapWriter.ProcessName(obfuscatedName_IncludingUnicode);
+                CleartextContext = cleartextContext;
+                ObfuscatedContext = TsvMapWriter.ProcessName(obfuscatedContext_IncludingUnicode);
+                EntryType = entryType;
+                Status = status;
+            }
+        }
+
+        public List<Entry> Entries = new List<Entry>();
+
+        public void WriteMap(ObfuscationMap map)
+        {
+            // JGMA: Previously this showed the renamed items first, then the skipped ones. We don't care - just show everything together.
+
+            //writer.WriteLine("Renamed Types:");
+
+            foreach (ObfuscatedClass classInfo in map.ClassMap.Values)
+            {
+                //if (classInfo.Status == ObfuscationStatus.Renamed)
+                    DumpClass(classInfo);
+            }
+
+            /*writer.WriteLine();
+            writer.WriteLine("Skipped Types:");
+
+            foreach (ObfuscatedClass classInfo in map.ClassMap.Values)
+            {
+                // now print the stuff we skipped
+                if (classInfo.Status == ObfuscationStatus.Skipped)
+                    DumpClass(classInfo);
+            }
+
+            writer.WriteLine();*/
+            //writer.WriteLine("Renamed Resources:");
+            //writer.WriteLine();
+
+            foreach (ObfuscatedThing info in map.Resources)
+            {
+                if (info.Status == ObfuscationStatus.Renamed)
+                {
+                    //writer.WriteLine("{0}\t{1}\tRenamed", ProcessName(info.StatusText), info.Name);
+                    Entries.Add(new Entry(info.Name, info.StatusText, "", "", "resource", "renamed"));
+                }
+                else
+                {
+                    //writer.WriteLine("{0}\t{1}\tSkipped", info.Name, info.Name);
+                    Entries.Add(new Entry(info.Name, info.Name, "", "", "resource", "skipped"));
+                }
+            }
+
+            //writer.WriteLine();
+            /*writer.WriteLine("Skipped Resources:");
+            writer.WriteLine();
+
+            foreach (ObfuscatedThing info in map.Resources)
+            {
+                if (info.Status == ObfuscationStatus.Skipped)
+                    writer.WriteLine("{0} ({1})", info.Name, info.StatusText);
+            }*/
+
+            DoWrite(Entries, writer1);
+        }
+
+        protected virtual void DoWrite(List<Entry> MyEntries, TextWriter MyWriter)
+        {
+            MyWriter.WriteLine("CleartextContext\tObfuscatedContext\tCleartextName\tObfuscatedName\tEntryType\tStatus");
+
+            foreach (var E in MyEntries)
+            {
+                StringBuilder SB = new StringBuilder();
+                SB.Append(E.CleartextContext).Append("\t").Append(E.ObfuscatedContext).Append("\t")
+                    .Append(E.CleartextName).Append("\t").Append(E.ObfuscatedName).Append("\t").Append(E.EntryType).Append("\t").Append(E.Status);
+                MyWriter.WriteLine(SB.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Uses same logic as MxmnLib.ctxPostError.DeobfuscateErrorString
+        /// </summary>
+        /// <param name="inName"></param>
+        public static string ProcessName(string inName)
+        {
+            var SB = new System.Text.StringBuilder();
+            foreach (char C in inName)
+            {
+                int I = (int)C;
+                if ((I >= 32 && I <= 126) || C == '\r' || C == '\n')
+                    SB.Append(C);
+                else
+                    SB.AppendFormat("[0x{0:x}]", I);
+            }
+            return SB.ToString();
+        }
+
+        private void DumpClass(ObfuscatedClass classInfo)
+        {
+            string classCleartextName, classObfuscatedName;
+
+            if (classInfo.Status == ObfuscationStatus.Renamed)
+            {
+                //writer.WriteLine("{0} -> {1}", classInfo.Name, classInfo.StatusText);
+                //writer.WriteLine("{0}\t{1}\tRenamed", ObfText, CleanText);
+                Entries.Add(new Entry(classInfo.Name, classInfo.StatusText, "", "", "class", "renamed"));
+                classCleartextName = classInfo.Name;
+                classObfuscatedName = classInfo.StatusText;
+            }
+            else if (classInfo.Status == ObfuscationStatus.Skipped)
+            {
+                Entries.Add(new Entry(classInfo.Name, classInfo.Name, "", "", "class", "skipped"));
+                classCleartextName = classInfo.Name;
+                classObfuscatedName = classInfo.Name;
+            }
+            else
+                return;
+
+            int numRenamed = 0;
+            foreach (KeyValuePair<MethodKey, ObfuscatedThing> method in classInfo.Methods)
+            {
+                //if (method.Value.Status == ObfuscationStatus.Renamed)
+                {
+                    DumpMethod(method.Key, method.Value);
+                    numRenamed++;
+                }
+            }
+
+            /*
+            // add a blank line to separate renamed from skipped...it's pretty.
+            if (numRenamed < classInfo.Methods.Count)
+               writer.WriteLine();
+            foreach (KeyValuePair<MethodKey, ObfuscatedThing> method in classInfo.Methods)
+            {
+                if (method.Value.Status == ObfuscationStatus.Skipped)
+                    DumpMethod(method.Key, method.Value);
+            }
+            // add a blank line to separate methods from field...it's pretty.
+            if (classInfo.Methods.Count > 0 && classInfo.Fields.Count > 0)
+                writer.WriteLine();*/
+
+            //numRenamed = 0;
+            foreach (KeyValuePair<FieldKey, ObfuscatedThing> field in classInfo.Fields)
+            {
+                //if (field.Value.Status == ObfuscationStatus.Renamed)
+                {
+                    DumpField(field.Key, field.Value, classCleartextName, classObfuscatedName);
+                    numRenamed++;
+                }
+            }
+
+            /*// add a blank line to separate renamed from skipped...it's pretty.
+            if (numRenamed < classInfo.Fields.Count)
+                writer.WriteLine();
+            foreach (KeyValuePair<FieldKey, ObfuscatedThing> field in classInfo.Fields)
+            {
+                if (field.Value.Status == ObfuscationStatus.Skipped)
+                    DumpField(writer, field.Key, field.Value);
+            }
+
+            // add a blank line to separate props...it's pretty.
+            if (classInfo.Properties.Count > 0)
+                writer.WriteLine();*/
+
+            //numRenamed = 0;
+            foreach (KeyValuePair<PropertyKey, ObfuscatedThing> field in classInfo.Properties)
+            {
+                //if (field.Value.Status == ObfuscationStatus.Renamed)
+                {
+                    DumpProperty(field.Key, field.Value, classCleartextName, classObfuscatedName);
+                    numRenamed++;
+                }
+            }
+
+            /*// add a blank line to separate renamed from skipped...it's pretty.
+            if (numRenamed < classInfo.Properties.Count)
+                writer.WriteLine();
+
+            foreach (KeyValuePair<PropertyKey, ObfuscatedThing> field in classInfo.Properties)
+            {
+                if (field.Value.Status == ObfuscationStatus.Skipped)
+                    DumpProperty(writer, field.Key, field.Value);
+            }
+
+            // add a blank line to separate events...it's pretty.
+            if (classInfo.Events.Count > 0)
+                writer.WriteLine();*/
+
+            //numRenamed = 0;
+            foreach (KeyValuePair<EventKey, ObfuscatedThing> field in classInfo.Events)
+            {
+                //if (field.Value.Status == ObfuscationStatus.Renamed)
+                {
+                    DumpEvent(field.Key, field.Value, classCleartextName, classObfuscatedName);
+                    numRenamed++;
+                }
+            }
+
+            /*// add a blank line to separate renamed from skipped...it's pretty.
+            if (numRenamed < classInfo.Events.Count)
+                writer.WriteLine();*/
+
+            foreach (KeyValuePair<EventKey, ObfuscatedThing> field in classInfo.Events)
+            {
+                //if (field.Value.Status == ObfuscationStatus.Skipped)
+                    DumpEvent(field.Key, field.Value, classCleartextName, classObfuscatedName);
+            }
+
+            //writer.WriteLine("}");
+        }
+
+        private void DumpMethod(MethodKey key, ObfuscatedThing info)
+        {
+            /*writer.Write("{0}(", info.Name);
+            for (int i = 0; i < key.Count; i++)
+            {
+                if (i > 0)
+                    writer.Write(", ");
+                else
+                    writer.Write(" ");
+
+                writer.Write(key.ParamTypes[i]);
+            }
+
+            if (info.Status == ObfuscationStatus.Renamed)
+                writer.WriteLine(" ) -> {0}", info.StatusText);
+            else
+            {
+                Debug.Assert(info.Status == ObfuscationStatus.Skipped,
+                    "Status is expected to be either Renamed or Skipped.");
+
+                writer.WriteLine(" ) skipped:  {0}", info.StatusText);
+            }*/
+
+            Entry E;
+            if (info.Status == ObfuscationStatus.Renamed)
+                E = new Entry(info.Name, info.StatusText, "", "", "method", "renamed");
+            else if (info.Status == ObfuscationStatus.Skipped)
+                E = new Entry(info.Name, info.Name, "", "", "method", "skipped");
+            else
+                return;
+
+            E.Method_Params = string.Join(", ", key.ParamTypes);
+            Entries.Add(E);
+        }
+
+        private void DumpField(/*TextWriter writer, */FieldKey key, ObfuscatedThing info, string CleartextContext, string ObfuscatedContext)
+        {
+            Entry E;
+            if (info.Status == ObfuscationStatus.Renamed)
+                E = new Entry(info.Name, info.StatusText, CleartextContext, ObfuscatedContext, "field", "renamed");
+            else if (info.Status == ObfuscationStatus.Skipped)
+                E = new Entry(info.Name, info.Name, CleartextContext, ObfuscatedContext, "field", "skipped");
+            else
+                return;
+
+            E.Field_Type = key.Type;
+            Entries.Add(E);
+        }
+
+        private void DumpProperty(/*TextWriter writer, */PropertyKey key, ObfuscatedThing info, string CleartextContext, string ObfuscatedContext)
+        {
+            /*if (info.Status == ObfuscationStatus.Renamed)
+                writer.WriteLine("\t{0} {1} -> {2}", key.Type, info.Name, info.StatusText);
+            else
+            {
+                Debug.Assert(info.Status == ObfuscationStatus.Skipped,
+                    "Status is expected to be either Renamed or Skipped.");
+
+                writer.WriteLine("\t{0} {1} skipped:  {2}", key.Type, info.Name, info.StatusText);
+            }*/
+            Entry E;
+            if (info.Status == ObfuscationStatus.Renamed)
+                E = new Entry(info.Name, info.StatusText, CleartextContext, ObfuscatedContext, "property", "renamed");
+            else if (info.Status == ObfuscationStatus.Skipped)
+                E = new Entry(info.Name, info.Name, CleartextContext, ObfuscatedContext, "property", "skipped");
+            else
+                return;
+            E.Field_Type = key.Type;
+            Entries.Add(E);
+        }
+
+        private void DumpEvent(/*TextWriter writer, */EventKey key, ObfuscatedThing info, string CleartextContext, string ObfuscatedContext)
+        {
+            Entry E;
+            if (info.Status == ObfuscationStatus.Renamed)
+                E = new Entry(info.Name, info.StatusText, CleartextContext, ObfuscatedContext, "event", "renamed");
+            else if (info.Status == ObfuscationStatus.Skipped)
+                E = new Entry(info.Name, info.Name, CleartextContext, ObfuscatedContext, "event", "skipped");
+            else
+                return;
+            E.Field_Type = key.Type;
+            Entries.Add(E);
+        }
+
+        public void Dispose()
+        {
+            writer1.Close();
+        }
+    }
+
+
     class TextMapWriter : IMapWriter, IDisposable
     {
         private readonly TextWriter writer;
@@ -265,6 +622,7 @@ namespace Obfuscar
             writer.Close();
         }
     }
+
 
     class XmlMapWriter : IMapWriter, IDisposable
     {
@@ -518,4 +876,7 @@ namespace Obfuscar
             writer.Close();
         }
     }
+
+
+
 }
