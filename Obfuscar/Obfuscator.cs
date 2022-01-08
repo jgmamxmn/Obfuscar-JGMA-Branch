@@ -164,7 +164,9 @@ namespace Obfuscar
                 NameMaker.UseKoreanChars = true;
             // JGMA added this CustomAlphabet option
             if (!string.IsNullOrEmpty(Project.Settings.CustomAlphabetFile))
-                NameMaker.DoUseCustomAlphabet(Project.Settings.CustomAlphabetFile);
+                NameMaker.DoUseCustomAlphabetFile(Project.Settings.CustomAlphabetFile);
+            else if(!string.IsNullOrEmpty(Project.Settings.CustomAlphabetRange))
+                NameMaker.DoUseCustomAlphabetRange(Project.Settings.CustomAlphabetRange);
 
             LogOutput("Loading assemblies...");
             LogOutput("Extra framework folders: ");

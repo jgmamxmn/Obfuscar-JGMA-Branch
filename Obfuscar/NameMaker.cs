@@ -74,7 +74,7 @@ namespace Obfuscar
 
             UseKoreanChars = false;
 
-            // JGMA: Default for CustomChars is fales. This will get overridden separately, if applicable
+            // JGMA: Default for CustomChars is false. This will get overridden separately, if applicable
             UseCustomChars = false; // JGMA added this
         }
 
@@ -135,9 +135,9 @@ namespace Obfuscar
         }
 
         // JGMA added this custom alphabet
-        public static void DoUseCustomAlphabet(string AlphabetFile)
+        public static void DoUseCustomAlphabetFile(string AlphabetFile)
         {
-            Console.Write("Custom alphabet: " + AlphabetFile + "... ");
+            Console.Write("Custom alphabet file: " + AlphabetFile + "... ");
 
             if (!System.IO.File.Exists(AlphabetFile))
             {
@@ -170,6 +170,92 @@ namespace Obfuscar
 
             Console.WriteLine("loaded!");
             //Console.WriteLine("Alphabet: " + customChars);
+
+            UseCustomChars = true;
+        }
+
+        // JGMA added this custom alphabet
+        public static void DoUseCustomAlphabetRange(string AlphabetRange)
+        {
+            bool IntTryParse(in string s, out int i)
+            {
+                // Empty str
+                if (string.IsNullOrEmpty(s))
+                {
+                    i = 0;
+                    return false;
+                }
+                // Hex
+                if (s.Length > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+                {
+                    try
+                    {
+                        i = int.Parse(s.Substring(2), System.Globalization.NumberStyles.HexNumber);
+                        return true;
+                    }
+                    catch
+                    {
+                        i = 0;
+                        return false;
+                    }
+                }
+                // Int
+                return int.TryParse(s, out i);
+            }
+
+            Console.Write("Custom alphabet range: " + AlphabetRange + "... ");
+
+            var LChs = new List<char>();
+            var AllVals = AlphabetRange.Split(new[] { ',' });
+            foreach(var V in AllVals)
+            {
+                if (V.Contains("-"))
+                {
+                    var VSplit = V.Split(new[] { '-' });
+                    if (IntTryParse(VSplit[0], out int IStart) && IntTryParse(VSplit[1], out int IEnd))
+                    {
+                        for (int ICh = IStart; ICh <= IEnd; ++ICh)
+                            LChs.Add((char)ICh);
+                    }
+                    else
+                    {
+                        Console.Write($"[error, can't parse range '{V}'] ");
+                    }
+                }
+                else if(IntTryParse(V, out int VInt))
+                {
+                    LChs.Add((char)VInt);
+                }
+                else
+                {
+                    Console.Write($"[error, can't parse value/range '{V}'] ");
+                }
+            }
+
+            string allCustom = new string(LChs.ToArray());
+            int Max = allCustom.Length;
+            if (Max < 128)
+            {
+                Console.WriteLine("[warning: too short (need at least 128 chars)] ");
+                //return;
+            }
+
+            var chars = new List<char>(128);
+            var rnd = new Random();
+            var startPoint = rnd.Next(0, Max - 1);
+            for (int i = 0; i < 128; i++)
+            {
+                // If we overrun, we loop round to the start
+                if ((startPoint + i) >= Max)
+                    startPoint = -i;
+
+                chars.Add((char)allCustom[i + startPoint]);
+            }
+
+            ShuffleArray(chars, rnd);
+            customChars = new string(chars.ToArray());
+
+            Console.WriteLine("loaded!");
 
             UseCustomChars = true;
         }

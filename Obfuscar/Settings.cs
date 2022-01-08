@@ -47,6 +47,7 @@ namespace Obfuscar
             UseUnicodeNames = XmlConvert.ToBoolean(vars.GetValue("UseUnicodeNames", "false"));
             UseKoreanNames = XmlConvert.ToBoolean(vars.GetValue("UseKoreanNames", "false"));
             CustomAlphabetFile = vars.GetValue("CustomAlphabetFile", ""); // JGMA added this
+            CustomAlphabetRange = vars.GetValue("CustomAlphabetRange", ""); // JGMA added this
             HideStrings = XmlConvert.ToBoolean(vars.GetValue("HideStrings", "true"));
             Optimize = XmlConvert.ToBoolean(vars.GetValue("OptimizeMethods", "true"));
             SuppressIldasm = XmlConvert.ToBoolean(vars.GetValue("SuppressIldasm", "true"));
@@ -100,6 +101,12 @@ namespace Obfuscar
         /// JGMA: If set to a file on disk, 128 random chars will be chosen from the specified alphabet file.
         /// </summary>
         public string CustomAlphabetFile { get; } // JGMA added this
+        /// <summary>
+        /// Lists ANSI/Unicode int values corresponding to chars
+        /// May include one or more entries, separated by commas. Each entry can be a single int e.g. '65' or
+        /// a range with a hyphen e.g. '65-90'.
+        /// </summary>
+        public string CustomAlphabetRange { get; } // JGMA added this
 
         public bool UseKoreanNames { get; }
     }
